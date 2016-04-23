@@ -171,23 +171,34 @@ class TestCSVStreamingRenderer(TestCase):
 
     def setUp(self):
         self.header = ['a', 'b']
-        self.data = [{'a': 1, 'b': 2}]
+        self.labels = {'a': 'Aa'}
+        data = [{'a': 1, 'b': 2}, {'a': 3, 'b': 7}]
+        
+        self.non_streaming_data = data
+        self.streaming_data = (x for x in data)
 
     def test_renderer_return_type(self):
         renderer = CSVStreamingRenderer()
         renderer.header = self.header
-        dump = renderer.render(self.data)
+        renderer.labels = self.labels
+
+        dump = renderer.render(self.streaming_data)
         self.assertIsInstance(dump, GeneratorType)
 
     def test_renderer_value(self):
         renderer = CSVRenderer()
         renderer.header = self.header
+        renderer.labels = self.labels
 
         streaming_renderer = CSVStreamingRenderer()
         streaming_renderer.header = self.header
+        streaming_renderer.labels = self.labels
 
-        renderer_data = renderer.render(self.data)
-        streaming_renderer_data = ''.join(streaming_renderer.render(self.data))
+        renderer_data = renderer.render(self.non_streaming_data)
+        streaming_renderer_data = ''.join(streaming_renderer.render(self.streaming_data))
+
+        print(streaming_renderer_data)
+
         self.assertEqual(renderer_data, streaming_renderer_data)
 
 

@@ -1,5 +1,8 @@
 from __future__ import unicode_literals
 import csv
+from itertools import chain
+from types import GeneratorType
+
 from rest_framework.renderers import *
 from six import StringIO, text_type
 from rest_framework_csv.orderedrows import OrderedRows
@@ -185,7 +188,7 @@ class CSVStreamingRenderer(CSVRenderer):
     def render(self, data, media_type=None, renderer_context={}):
         """
         Renders serialized *data* into CSV to be used with Django
-        StreamingHttpResponse. We need to return a generator here, so Django
+        StreamingHttpResponse. Accepts and returns a generator, so Django
         can iterate over it, rendering and returning each line.
 
         >>> renderer = CSVStreamingRenderer()
@@ -198,18 +201,23 @@ class CSVStreamingRenderer(CSVRenderer):
         >>> # return response
 
         """
+        if type(data) != GeneratorType:
+            raise Exception('StreamingRenderer should only be used with generators.')
+
         if data is None:
             yield ''
 
+        self.header = renderer_context.get('header', self.header)
         self.labels = renderer_context.get('labels', self.labels)
 
-        if not isinstance(data, list):
-            data = [data]
-
-        table = self.tablize(data)
         csv_buffer = Echo()
         csv_writer = csv.writer(csv_buffer)
-        for row in table:
+        for row in chain(([self.header]), data):
+            if isinstance(row, list) and self.labels:
+                row = (self.labels.get(x) or x for x in row)
+            if isinstance(row, dict):
+                row = row.values()
+
             # Assume that strings should be encoded as UTF-8
             yield csv_writer.writerow([
                 elem.encode('utf-8') if isinstance(elem, text_type) and PY2 else elem
